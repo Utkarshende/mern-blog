@@ -26,5 +26,20 @@ app.post('/api/posts', async (req, res) => {
   const savedPost = await newPost.save();
   res.json(savedPost);
 });
+// DELETE a post
+app.delete('/api/posts/:id', async (req, res) => {
+  await Post.findByIdAndDelete(req.params.id);
+  res.json({ message: "Post deleted" });
+});
+
+// UPDATE a post (Edit or Change Status)
+app.put('/api/posts/:id', async (req, res) => {
+  const updatedPost = await Post.findByIdAndUpdate(
+    req.params.id, 
+    req.body, 
+    { new: true } // This returns the modified document rather than the original
+  );
+  res.json(updatedPost);
+});
 
 app.listen(5000, () => console.log("Server running on port 5000"));
