@@ -6,7 +6,7 @@ require('dotenv').config();
 const Post = require('./models/Post');
 const app = express();
 
-app.use(cors());
+app.use(cors({origin:"https://vercel.com/utkarshas-projects-b2961f40/mern-blog-client"}));
 app.use(express.json()); // Allows the server to read JSON
 
 // Connect to MongoDB
