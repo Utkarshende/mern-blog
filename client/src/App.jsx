@@ -2,180 +2,90 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import ReactMarkdown from 'react-markdown';
 
-// Base URL for our Backend API
-const API_URL = 'http://localhost:5000/api/posts';
+const API = 'http://localhost:5000/api/posts';
 
 function App() {
   const [posts, setPosts] = useState([]);
-  const [formData, setFormData] = useState({ title: '', content: '', status: 'draft' });
-  const [editingId, setEditingId] = useState(null);
+  const [form, setForm] = useState({ title: '', content: '', status: 'draft' });
+  const [editId, setEditId] = useState(null);
 
-  // 1. Fetch all posts when the app loads
-  const fetchPosts = async () => {
-    try {
-      const res = await axios.get(API_URL);
-      setPosts(res.data);
-    } catch (err) {
-      console.error("Error fetching posts:", err);
-    }
-  };
+  const refresh = () => axios.get(API).then(res => setPosts(res.data));
+  useEffect(() => { refresh(); }, []);
 
-  useEffect(() => {
-    fetchPosts();
-  }, []);
-
-  // 2. Handle Form Submission (Create or Update)
-  const handleSubmit = async (e) => {
+  const handleSave = async (e) => {
     e.preventDefault();
-    try {
-      if (editingId) {
-        // Update existing post
-        await axios.put(`${API_URL}/${editingId}`, formData);
-        setEditingId(null);
-      } else {
-        // Create new post
-        await axios.post(API_URL, formData);
-      }
-      setFormData({ title: '', content: '', status: 'draft' });
-      fetchPosts();
-    } catch (err) {
-      console.error("Error saving post:", err);
-    }
+    editId ? await axios.put(`${API}/${editId}`, form) : await axios.post(API, form);
+    setForm({ title: '', content: '', status: 'draft' });
+    setEditId(null);
+    refresh();
   };
 
-  // 3. Delete a post
-  const deletePost = async (id) => {
-    if (window.confirm("Are you sure you want to delete this blog post?")) {
-      await axios.delete(`${API_URL}/${id}`);
-      fetchPosts();
-    }
-  };
-
-  // 4. Load post into form for editing
-  const startEdit = (post) => {
-    setEditingId(post._id);
-    setFormData({ 
-      title: post.title, 
-      content: post.content, 
-      status: post.status 
-    });
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
+  const startEdit = (p) => { setEditId(p._id); setForm(p); window.scrollTo(0,0); };
 
   return (
-    <div style={styles.container}>
-      <header style={styles.header}>
-        <h1>MERN Blog Studio</h1>
-        <p>Write in Markdown, publish to the world.</p>
-      </header>
+    <div style={ui.page}>
+      <nav style={ui.nav}>
+        <h2 style={{ fontWeight: 400 }}>MERN / <span style={{ color: '#888' }}>Minimalist Blog</span></h2>
+      </nav>
 
-      <div style={styles.layout}>
-        {/* EDITOR SECTION */}
-        <section style={styles.editorSection}>
-          <h2>{editingId ? '📝 Edit Post' : '✍️ New Post'}</h2>
-          <form onSubmit={handleSubmit} style={styles.form}>
-            <input 
-              style={styles.input}
-              value={formData.title} 
-              onChange={e => setFormData({...formData, title: e.target.value})} 
-              placeholder="Post Title..." 
-              required
-            />
-            <textarea 
-              style={styles.textarea}
-              value={formData.content} 
-              onChange={e => setFormData({...formData, content: e.target.value})} 
-              placeholder="Write your content here (Markdown supported)..." 
-              required
-            />
-            <div style={styles.formControls}>
-              <select 
-                style={styles.select}
-                value={formData.status} 
-                onChange={e => setFormData({...formData, status: e.target.value})}
-              >
-                <option value="draft">📁 Save as Draft</option>
-                <option value="published">🚀 Publish Now</option>
+      <main style={ui.container}>
+        {/* Composition Area */}
+        <section style={ui.editorBox}>
+          <form onSubmit={handleSave} style={ui.form}>
+            <input style={ui.input} value={form.title} placeholder="Title" onChange={e => setForm({...form, title: e.target.value})} required />
+            <textarea style={ui.textarea} value={form.content} placeholder="Content (Markdown)" onChange={e => setForm({...form, content: e.target.value})} required />
+            <div style={ui.row}>
+              <select style={ui.select} value={form.status} onChange={e => setForm({...form, status: e.target.value})}>
+                <option value="draft">Draft</option>
+                <option value="published">Publish</option>
               </select>
-              <button type="submit" style={styles.submitBtn}>
-                {editingId ? 'Update Post' : 'Save Post'}
-              </button>
-              {editingId && (
-                <button 
-                  type="button" 
-                  onClick={() => {setEditingId(null); setFormData({title:'', content:'', status:'draft'})}}
-                  style={styles.cancelBtn}
-                >
-                  Cancel
-                </button>
-              )}
+              <button type="submit" style={ui.btnMain}>{editId ? 'Update' : 'Post'}</button>
             </div>
           </form>
         </section>
 
-        {/* PREVIEW SECTION */}
-        <section style={styles.previewSection}>
-          <h2>👀 Live Preview</h2>
-          <div style={styles.previewContent}>
-            <h1 style={{margin: 0}}>{formData.title || "Untitled Post"}</h1>
-            <hr />
-            <ReactMarkdown>{formData.content || "*No content to preview yet...*"}</ReactMarkdown>
-          </div>
-        </section>
-      </div>
-
-      <hr style={{margin: '40px 0'}} />
-
-      {/* BLOG FEED SECTION */}
-      <section>
-        <h2>📬 Management Console</h2>
-        <div style={styles.grid}>
-          {posts.map(post => (
-            <div key={post._id} style={{
-              ...styles.card, 
-              borderLeft: post.status === 'published' ? '5px solid #4CAF50' : '5px solid #FF9800'
-            }}>
-              <div style={styles.cardHeader}>
-                <span style={post.status === 'published' ? styles.statusPub : styles.statusDraft}>
-                  {post.status.toUpperCase()}
-                </span>
-                <small>{new Date(post.createdAt).toLocaleDateString()}</small>
+        {/* Feed Area */}
+        <section style={ui.feed}>
+          {posts.map(p => (
+            <article key={p._id} style={ui.card}>
+              <div style={ui.cardMeta}>
+                <span style={p.status === 'published' ? ui.dotPub : ui.dotDraft}>●</span> {p.status}
               </div>
-              <h3>{post.title}</h3>
-              <div style={styles.cardActions}>
-                <button onClick={() => startEdit(post)} style={styles.editBtn}>Edit</button>
-                <button onClick={() => deletePost(post._id)} style={styles.deleteBtn}>Delete</button>
+              <h3 style={ui.cardTitle}>{p.title}</h3>
+              <div style={ui.preview}><ReactMarkdown>{p.content}</ReactMarkdown></div>
+              <div style={ui.actions}>
+                <button onClick={() => startEdit(p)} style={ui.btnLink}>Edit</button>
+                <button onClick={() => axios.delete(`${API}/${p._id}`).then(refresh)} style={ui.btnDel}>Delete</button>
               </div>
-            </div>
+            </article>
           ))}
-        </div>
-      </section>
+        </section>
+      </main>
     </div>
   );
 }
 
-// Minimalist Styles
-const styles = {
-  container: { maxWidth: '1200px', margin: '0 auto', padding: '20px', fontFamily: 'system-ui, sans-serif' },
-  header: { textAlign: 'center', marginBottom: '40px' },
-  layout: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px' },
+const ui = {
+  page: { fontFamily: '"Inter", sans-serif', color: '#333', backgroundColor: '#fafafa', minHeight: '100vh' },
+  nav: { padding: '20px 50px', borderBottom: '1px solid #eee', backgroundColor: '#fff' },
+  container: { maxWidth: '800px', margin: '40px auto', padding: '0 20px' },
+  editorBox: { backgroundColor: '#fff', padding: '30px', borderRadius: '12px', border: '1px solid #eee', marginBottom: '40px' },
   form: { display: 'flex', flexDirection: 'column', gap: '15px' },
-  input: { padding: '12px', fontSize: '18px', borderRadius: '5px', border: '1px solid #ddd' },
-  textarea: { padding: '12px', height: '300px', fontSize: '16px', borderRadius: '5px', border: '1px solid #ddd', resize: 'vertical' },
-  formControls: { display: 'flex', gap: '10px' },
-  select: { padding: '10px', borderRadius: '5px' },
-  submitBtn: { padding: '10px 20px', background: '#2196F3', color: '#fff', border: 'none', borderRadius: '5px', cursor: 'pointer' },
-  cancelBtn: { padding: '10px 20px', background: '#eee', border: 'none', borderRadius: '5px', cursor: 'pointer' },
-  previewSection: { background: '#fcfcfc', border: '1px solid #eee', padding: '20px', borderRadius: '8px' },
-  previewContent: { color: '#333', lineHeight: '1.6' },
-  grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px' },
-  card: { padding: '20px', background: '#fff', boxShadow: '0 2px 5px rgba(0,0,0,0.1)', borderRadius: '5px' },
-  cardHeader: { display: 'flex', justifyContent: 'space-between', marginBottom: '10px' },
-  statusPub: { color: '#4CAF50', fontWeight: 'bold', fontSize: '12px' },
-  statusDraft: { color: '#FF9800', fontWeight: 'bold', fontSize: '12px' },
-  cardActions: { marginTop: '15px', display: 'flex', gap: '10px' },
-  editBtn: { padding: '5px 10px', background: '#fff', border: '1px solid #2196F3', color: '#2196F3', cursor: 'pointer' },
-  deleteBtn: { padding: '5px 10px', background: '#fff', border: '1px solid #f44336', color: '#f44336', cursor: 'pointer' },
+  input: { fontSize: '24px', border: 'none', borderBottom: '1px solid #eee', outline: 'none', padding: '10px 0' },
+  textarea: { fontSize: '16px', border: 'none', outline: 'none', height: '150px', resize: 'none', lineHeight: '1.6' },
+  row: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
+  select: { border: 'none', background: '#f0f0f0', padding: '8px 12px', borderRadius: '6px' },
+  btnMain: { backgroundColor: '#000', color: '#fff', padding: '10px 25px', borderRadius: '6px', border: 'none', cursor: 'pointer' },
+  feed: { display: 'flex', flexDirection: 'column', gap: '20px' },
+  card: { padding: '25px', backgroundColor: '#fff', borderRadius: '12px', border: '1px solid #eee' },
+  cardMeta: { fontSize: '12px', textTransform: 'uppercase', letterSpacing: '1px', color: '#888', marginBottom: '10px' },
+  dotPub: { color: '#4caf50', marginRight: '5px' },
+  dotDraft: { color: '#ff9800', marginRight: '5px' },
+  cardTitle: { margin: '0 0 10px 0', fontSize: '20px' },
+  preview: { fontSize: '15px', color: '#555', lineHeight: '1.6' },
+  actions: { marginTop: '20px', display: 'flex', gap: '15px' },
+  btnLink: { background: 'none', border: 'none', color: '#0070f3', cursor: 'pointer', padding: 0 },
+  btnDel: { background: 'none', border: 'none', color: '#ff4d4f', cursor: 'pointer', padding: 0 }
 };
 
 export default App;
