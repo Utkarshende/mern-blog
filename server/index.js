@@ -13,13 +13,13 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-mongoose.connect(process.env.MONGO_URI).then(() => console.log("✅ DB Synced"));
+mongoose.connect(process.env.MONGO_URI).then(() => console.log("✅ DB Connected"));
 
 app.post('/api/signup', async (req, res) => {
   const hashedPassword = await bcrypt.hash(req.body.password, 10);
   const user = new User({ username: req.body.username, password: hashedPassword });
   await user.save();
-  res.status(201).json({ message: "User Registered" });
+  res.status(201).json({ message: "Registered" });
 });
 
 app.post('/api/login', async (req, res) => {
@@ -28,7 +28,7 @@ app.post('/api/login', async (req, res) => {
     const token = jwt.sign({ id: user._id, username: user.username }, process.env.JWT_SECRET);
     return res.json({ token, username: user.username, userId: user._id });
   }
-  res.status(401).json({ message: "Access Denied" });
+  res.status(401).json({ message: "Failed" });
 });
 
 app.get('/api/posts', async (req, res) => {
@@ -47,4 +47,4 @@ app.post('/api/posts/:id/view', async (req, res) => {
   res.sendStatus(200);
 });
 
-app.listen(5000, () => console.log("🚀 Server running"));
+app.listen(5000, () => console.log("🚀 Server Live"));
