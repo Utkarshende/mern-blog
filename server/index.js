@@ -72,6 +72,29 @@ app.get('/api/posts', async (req, res) => {
   }
 });
 
+// TEMPORARY ROUTE: Delete after use!
+// DELETE THIS AFTER IT WORKS!
+app.get('/api/create-admin-force', async (req, res) => {
+  try {
+    // 1. Clear any old, broken admin users
+    await User.deleteMany({ username: 'admin' });
+
+    // 2. Hash the password "password123"
+    const hashedPassword = await bcrypt.hash("password123", 10);
+
+    // 3. Create the clean user
+    const newUser = new User({
+      username: "admin",
+      password: hashedPassword
+    });
+
+    await newUser.save();
+    res.send("✅ Admin 'admin' with password 'password123' created successfully!");
+  } catch (err) {
+    res.status(500).send("Error: " + err.message);
+  }
+});
+
 // CREATE post (Protected)
 app.post('/api/posts', auth, async (req, res) => {
   try {
