@@ -5,6 +5,35 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 require('dotenv').config();
 
+
+const seedAdmin = async () => {
+  try {
+    // 1. Connect to your DB
+    await mongoose.connect(process.env.MONGO_URI);
+
+    // 2. Clear existing users (Optional)
+    await User.deleteMany({});
+
+    // 3. Hash your desired password
+    const hashedPassword = await bcrypt.hash('your_secure_password_here', 10);
+
+    // 4. Create the admin
+    await User.create({
+      username: 'admin',
+      password: hashedPassword
+    });
+
+    console.log("✅ Admin user created successfully!");
+    process.exit();
+  } catch (error) {
+    console.error("❌ Error seeding user:", error);
+    process.exit(1);
+  }
+};
+
+seedAdmin();
+
+
 const Post = require('./models/Post');
 const User = require('./models/User'); // We'll create this next
 const auth = require('./middleware/auth'); // Gatekeeper middleware
