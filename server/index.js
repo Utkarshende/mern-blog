@@ -6,60 +6,69 @@ require('dotenv').config();
 const Post = require('./models/Post');
 const app = express();
 
+// 1. FIXED: Removed the trailing slash from the Vercel URL
 const allowedOrigins = [
-  'http://localhost:5173', // Local React (Vite)
-  'http://localhost:3000', // Traditional React
-  'https://mern-blog-client-seven.vercel.app' // Your actual Vercel URL (Update this!)
+  'http://localhost:5173', 
+  'https://mern-blog-client-ten-vert.vercel.app' 
 ];
-
 
 app.use(cors({
   origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
-    
     if (allowedOrigins.indexOf(origin) === -1) {
-      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
-      return callback(new Error(msg), false);
+      return callback(new Error('CORS Policy block'), false);
     }
     return callback(null, true);
   }
 }));
 
-app.use(express.json()); // Allows the server to read JSON
+app.use(express.json());
 
-// Connect to MongoDB
 mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log("Database connected"))
-  .catch(err => console.error(err));
+  .then(() => console.log("✅ Database connected"))
+  .catch(err => console.error("❌ DB Connection Error:", err));
 
-// API: Get all blog posts
+// 2. IMPROVED: Added try/catch to routes to prevent 500 crashes
 app.get('/api/posts', async (req, res) => {
-  const posts = await Post.find();
-  res.json(posts);
+  try {
+    const posts = await Post.find().sort({ createdAt: -1 });
+    res.json(posts);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-// API: Create a new blog post
 app.post('/api/posts', async (req, res) => {
-  const newPost = new Post(req.body);
-  const savedPost = await newPost.save();
-  res.json(savedPost);
-});
-// DELETE a post
-app.delete('/api/posts/:id', async (req, res) => {
-  await Post.findByIdAndDelete(req.params.id);
-  res.json({ message: "Post deleted" });
+  try {
+    const newPost = new Post(req.body);
+    const savedPost = await newPost.save();
+    res.json(savedPost);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-// UPDATE a post (Edit or Change Status)
+app.delete('/api/posts/:id', async (req, res) => {
+  try {
+    await Post.findByIdAndDelete(req.params.id);
+    res.json({ message: "Post deleted" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.put('/api/posts/:id', async (req, res) => {
-  const updatedPost = await Post.findByIdAndUpdate(
-    req.params.id, 
-    req.body, 
-    { new: true } // This returns the modified document rather than the original
-  );
-  res.json(updatedPost);
+  try {
+    const updatedPost = await Post.findByIdAndUpdate(
+      req.params.id, 
+      req.body, 
+      { new: true }
+    );
+    res.json(updatedPost);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
