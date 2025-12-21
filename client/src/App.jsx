@@ -23,6 +23,12 @@ export default function App() {
     res.data.forEach(post => axios.post(`${API}/posts/${post._id}/view`));
   };
 
+  const getReadingTime = (content) => {
+    const words = content.split(/\s+/).length;
+    const minutes = Math.ceil(words / 200);
+    return `${minutes} min read`;
+  };
+
   const viewAuthorProfile = async (authorId) => {
     const res = await axios.get(`${API}/posts/author/${authorId}`);
     setPublicProfile(res.data);
@@ -70,12 +76,18 @@ export default function App() {
         {view === 'home' && posts.map(post => (
           <article key={post._id} className="mb-24">
             {post.imageUrl && <img src={post.imageUrl} className="w-full h-80 object-cover rounded-[2.5rem] mb-6 shadow-xl" />}
-            <span onClick={() => viewAuthorProfile(post.author)} className="text-[10px] font-bold text-blue-600 uppercase tracking-widest cursor-pointer hover:underline">By {post.authorName}</span>
-            <h2 className="text-5xl font-black mt-2 mb-6 tracking-tighter">{post.title}</h2>
+            <div className="flex items-center gap-2 mb-2">
+              <span onClick={() => viewAuthorProfile(post.author)} className="text-[10px] font-bold text-blue-600 uppercase tracking-widest cursor-pointer hover:underline">By {post.authorName}</span>
+              <span className="text-[10px] text-slate-300">•</span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{getReadingTime(post.content)}</span>
+            </div>
+            <h2 className="text-5xl font-black mb-6 tracking-tighter leading-tight">{post.title}</h2>
             <div className="prose mb-8"><ReactMarkdown>{post.content}</ReactMarkdown></div>
-            <div className="flex gap-6 text-sm font-bold mb-10">
-              <button onClick={() => handleLike(post._id)}>{post.likes?.includes(currentUserId) ? '❤️' : '🤍'} {post.likes?.length}</button>
-              <span>👁️ {post.views} Reads</span>
+            <div className="flex gap-6 text-sm font-bold mb-10 text-slate-400">
+              <button onClick={() => handleLike(post._id)} className="flex items-center gap-1">
+                {post.likes?.includes(currentUserId) ? '❤️' : '🤍'} {post.likes?.length}
+              </button>
+              <span>👁️ {post.views}</span>
               <span>💬 {post.comments?.length}</span>
             </div>
           </article>
@@ -94,10 +106,10 @@ export default function App() {
               {publicProfile.posts.map(post => (
                 <div key={post._id} className="group cursor-pointer">
                   <h3 className="text-2xl font-bold group-hover:text-blue-600 transition">{post.title}</h3>
-                  <p className="text-slate-500 text-sm mt-2 line-clamp-2">{post.content}</p>
-                  <div className="mt-4 flex gap-4 text-[10px] font-bold text-slate-300 uppercase">
+                  <div className="flex gap-2 text-[10px] font-bold text-slate-300 uppercase mt-2">
                     <span>{new Date(post.createdAt).toLocaleDateString()}</span>
-                    <span>{post.views} Views</span>
+                    <span>•</span>
+                    <span>{getReadingTime(post.content)}</span>
                   </div>
                 </div>
               ))}
@@ -107,11 +119,10 @@ export default function App() {
 
         {view === 'write' && (!token ? (
           <form onSubmit={handleAuth} className="max-w-xs mx-auto space-y-4 pt-10">
-            <h2 className="text-3xl font-black mb-6">Welcome.</h2>
-            <input className="w-full border p-4 rounded-2xl" placeholder="Username" onChange={e => setCredentials({...credentials, username: e.target.value})} />
-            <input className="w-full border p-4 rounded-2xl" type="password" placeholder="Password" onChange={e => setCredentials({...credentials, password: e.target.value})} />
+            <h2 className="text-3xl font-black mb-6 text-center">Join DevBlog.</h2>
+            <input className="w-full border p-4 rounded-2xl outline-none focus:ring-2 ring-blue-500" placeholder="Username" onChange={e => setCredentials({...credentials, username: e.target.value})} />
+            <input className="w-full border p-4 rounded-2xl outline-none focus:ring-2 ring-blue-500" type="password" placeholder="Password" onChange={e => setCredentials({...credentials, password: e.target.value})} />
             <button className="w-full bg-black text-white p-4 rounded-2xl font-bold">Continue</button>
-            <button type="button" onClick={() => setAuthMode(authMode === 'login' ? 'signup' : 'login')} className="w-full text-xs text-slate-400 text-center">{authMode === 'login' ? 'Create account' : 'Login'}</button>
           </form>
         ) : (
           <div className="space-y-8">
@@ -121,7 +132,7 @@ export default function App() {
               setForm({...form, imageUrl: res.data.url});
             }} />
             <input className="w-full text-6xl font-black outline-none" placeholder="Title..." onChange={e => setForm({...form, title: e.target.value})} />
-            <textarea className="w-full h-96 text-2xl outline-none" placeholder="Tell your story..." onChange={e => setForm({...form, content: e.target.value})} />
+            <textarea className="w-full h-96 text-2xl outline-none resize-none" placeholder="Write something amazing..." onChange={e => setForm({...form, content: e.target.value})} />
             <button onClick={async () => { await axios.post(`${API}/posts`, form, { headers: { Authorization: `Bearer ${token}` } }); setView('home'); fetchPosts(); }} className="bg-blue-600 text-white px-12 py-4 rounded-full font-black">Publish</button>
           </div>
         ))}

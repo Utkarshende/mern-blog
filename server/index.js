@@ -51,7 +51,6 @@ app.get('/api/posts', async (req, res) => {
   res.json(posts);
 });
 
-// PUBLIC AUTHOR PROFILE ROUTE
 app.get('/api/posts/author/:id', async (req, res) => {
   const posts = await Post.find({ author: req.params.id }).sort({ createdAt: -1 });
   const user = await User.findById(req.params.id).select('username');
