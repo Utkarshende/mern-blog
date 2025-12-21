@@ -14,16 +14,15 @@ app.use(cors());
 app.use(express.json());
 
 mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log("✅ DB Connected"))
+  .then(() => console.log("✅ MongoDB Connected"))
   .catch(err => console.error("❌ DB Error:", err));
 
 // --- AUTH ROUTES ---
-
 app.post('/api/signup', async (req, res) => {
   try {
     const { username, password } = req.body;
-    const existingUser = await User.findOne({ username });
-    if (existingUser) return res.status(400).json({ message: "User already exists" });
+    const exists = await User.findOne({ username });
+    if (exists) return res.status(400).json({ message: "User already exists" });
 
     const hashedPassword = await bcrypt.hash(password, 10);
     const newUser = new User({ username, password: hashedPassword });
@@ -45,7 +44,6 @@ app.post('/api/login', async (req, res) => {
 });
 
 // --- BLOG ROUTES ---
-
 app.get('/api/posts', async (req, res) => {
   const posts = await Post.find().sort({ createdAt: -1 });
   res.json(posts);
@@ -53,17 +51,35 @@ app.get('/api/posts', async (req, res) => {
 
 app.post('/api/posts', auth, async (req, res) => {
   try {
-    const { title, content, status } = req.body;
-    // req.user comes from the auth middleware
     const newPost = new Post({
-      title,
-      content,
-      status,
+      ...req.body,
       author: req.user.id,
       authorName: req.user.username 
     });
     await newPost.save();
     res.json(newPost);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.put('/api/posts/:id', auth, async (req, res) => {
+  try {
+    const post = await Post.findById(req.params.id);
+    if (post.author.toString() !== req.user.id) {
+      return res.status(403).json({ message: "Not authorized to edit this" });
+    }
+    const updated = await Post.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    res.json(updated);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.delete('/api/posts/:id', auth, async (req, res) => {
+  try {
+    const post = await Post.findById(req.params.id);
+    if (post.author.toString() !== req.user.id) {
+      return res.status(403).json({ message: "Not authorized to delete this" });
+    }
+    await Post.findByIdAndDelete(req.params.id);
+    res.json({ message: "Deleted" });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
