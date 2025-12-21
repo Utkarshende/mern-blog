@@ -5,92 +5,110 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 require('dotenv').config();
 
-
-const seedAdmin = async () => {
-  try {
-    // 1. Connect to your DB
-    await mongoose.connect(process.env.MONGO_URI);
-
-    // 2. Clear existing users (Optional)
-    await User.deleteMany({});
-
-    // 3. Hash your desired password
-    const hashedPassword = await bcrypt.hash('your_secure_password_here', 10);
-
-    // 4. Create the admin
-    await User.create({
-      username: 'admin',
-      password: hashedPassword
-    });
-
-    console.log("✅ Admin user created successfully!");
-    process.exit();
-  } catch (error) {
-    console.error("❌ Error seeding user:", error);
-    process.exit(1);
-  }
-};
-
-seedAdmin();
-
-
+// Models
 const Post = require('./models/Post');
-const User = require('./models/User'); // We'll create this next
-const auth = require('./middleware/auth'); // Gatekeeper middleware
+const User = require('./models/User'); 
+const auth = require('./middleware/auth');
 
 const app = express();
 
-// CORS Configuration
-const allowedOrigins = ['http://localhost:5173', 'https://mern-blog-client-ten-vert.vercel.app'];
+// 1. CORS Configuration (Fixed for your Vercel URL)
+const allowedOrigins = [
+  'http://localhost:5173', 
+  'https://mern-blog-client-ten-vert.vercel.app'
+];
+
 app.use(cors({
-  origin: (origin, cb) => (!origin || allowedOrigins.includes(origin)) ? cb(null, true) : cb(new Error('CORS Error'))
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('CORS Policy Error'));
+    }
+  },
+  credentials: true
 }));
+
 app.use(express.json());
 
-// MongoDB Connection
+// 2. Database Connection
 mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log("✅ DB Connected"))
-  .catch(err => console.error("❌ DB Error:", err));
+  .then(() => console.log("✅ MongoDB Connected"))
+  .catch(err => console.error("❌ MongoDB Connection Error:", err));
 
-// --- AUTH ROUTES ---
+// --- AUTHENTICATION ROUTES ---
+
+// Login Route
 app.post('/api/login', async (req, res) => {
   try {
     const { username, password } = req.body;
     const user = await User.findOne({ username });
-    if (!user) return res.status(401).json({ message: "Invalid Credentials" });
+    
+    if (!user) {
+      return res.status(401).json({ message: "Invalid username or password" });
+    }
 
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) return res.status(401).json({ message: "Invalid Credentials" });
+    if (!isMatch) {
+      return res.status(401).json({ message: "Invalid username or password" });
+    }
 
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '1d' });
+    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '24h' });
     res.json({ token, username: user.username });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// --- BLOG ROUTES ---
+// --- BLOG POST ROUTES ---
+
+// GET all posts (Public)
 app.get('/api/posts', async (req, res) => {
-  const posts = await Post.find().sort({ createdAt: -1 });
-  res.json(posts);
+  try {
+    const posts = await Post.find().sort({ createdAt: -1 });
+    res.json(posts);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-// Protected Routes (require 'auth' middleware)
+// CREATE post (Protected)
 app.post('/api/posts', auth, async (req, res) => {
-  const newPost = new Post(req.body);
-  await newPost.save();
-  res.json(newPost);
+  try {
+    const newPost = new Post(req.body);
+    const savedPost = await newPost.save();
+    res.json(savedPost);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
+// UPDATE post (Protected)
 app.put('/api/posts/:id', auth, async (req, res) => {
-  const updated = await Post.findByIdAndUpdate(req.params.id, req.body, { new: true });
-  res.json(updated);
+  try {
+    const updatedPost = await Post.findByIdAndUpdate(
+      req.params.id, 
+      req.body, 
+      { new: true }
+    );
+    res.json(updatedPost);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
+// DELETE post (Protected)
 app.delete('/api/posts/:id', auth, async (req, res) => {
-  await Post.findByIdAndDelete(req.params.id);
-  res.json({ message: "Deleted" });
+  try {
+    await Post.findByIdAndDelete(req.params.id);
+    res.json({ message: "Post deleted successfully" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
+// 3. Port Configuration for Render
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`🚀 Server on port ${PORT}`));
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+});
