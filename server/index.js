@@ -85,4 +85,4 @@ app.post('/api/posts/:id/comments', auth, async (req, res) => {
   res.json(post);
 });
 
-app.listen(5000, () => console.log("🚀 Server running"));
+app.listen(5000, () => console.log("🚀 Server running on 5000"));
