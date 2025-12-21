@@ -8,120 +8,113 @@ export default function App() {
   const [posts, setPosts] = useState([]);
   const [view, setView] = useState('home');
   const [token, setToken] = useState(localStorage.getItem('token'));
-  const [currentUserId, setCurrentUserId] = useState(localStorage.getItem('userId'));
   const [form, setForm] = useState({ title: '', content: '', imageUrl: '' });
   const [credentials, setCredentials] = useState({ username: '', password: '' });
-  const [authMode, setAuthMode] = useState('login');
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => { fetchPosts(); }, []);
 
   const fetchPosts = async () => {
     const res = await axios.get(`${API}/posts`);
     setPosts(res.data);
-    res.data.forEach(post => axios.post(`${API}/posts/${post._id}/view`));
   };
 
-  const extractHeaders = (content) => {
-    const headerRegex = /^(#{2,3})\s+(.*)$/gm;
-    const headers = [];
-    let match;
-    while ((match = headerRegex.exec(content)) !== null) {
-      headers.push({ level: match[1].length, text: match[2] });
-    }
-    return headers;
+  const handleImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setUploading(true);
+    const fd = new FormData();
+    fd.append('image', file);
+    try {
+      const res = await axios.post(`${API}/upload`, fd, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setForm({ ...form, imageUrl: res.data.url });
+    } catch (err) { alert("Upload failed"); }
+    setUploading(false);
   };
 
   const handleAuth = async (e) => {
     e.preventDefault();
-    const endpoint = authMode === 'login' ? 'login' : 'signup';
-    const res = await axios.post(`${API}/${endpoint}`, credentials);
-    if (authMode === 'login') {
-      setToken(res.data.token); setCurrentUserId(res.data.userId);
-      localStorage.setItem('token', res.data.token); localStorage.setItem('userId', res.data.userId);
-      setView('home');
-    } else { setAuthMode('login'); }
+    const res = await axios.post(`${API}/login`, credentials);
+    setToken(res.data.token);
+    localStorage.setItem('token', res.data.token);
+    setView('home');
   };
 
   return (
-    <div className="min-h-screen bg-[#0F172A] text-slate-200 font-sans selection:bg-blue-500/30 transition-colors duration-500">
-      {/* Navigation */}
+    <div className="min-h-screen bg-[#0F172A] text-slate-200 font-sans selection:bg-blue-500/30">
       <nav className="sticky top-0 z-50 bg-[#0F172A]/80 backdrop-blur-xl border-b border-slate-800 px-6 py-4">
         <div className="max-w-5xl mx-auto flex justify-between items-center">
-          <h1 className="text-2xl font-serif font-black tracking-tighter text-white cursor-pointer" onClick={() => setView('home')}>Journal.</h1>
-          <div className="flex gap-8 items-center text-[11px] font-bold tracking-[0.2em] uppercase">
-            <button onClick={() => setView('home')} className="hover:text-blue-400 transition">Explore</button>
-            {token ? (
-              <button onClick={() => setView('write')} className="bg-blue-600 text-white px-6 py-2 rounded-full hover:bg-blue-500 transition shadow-lg shadow-blue-900/20">Write</button>
-            ) : <button onClick={() => setView('write')} className="text-blue-400">Sign In</button>}
-          </div>
+          <h1 className="text-2xl font-serif font-black text-white cursor-pointer" onClick={() => setView('home')}>Journal.</h1>
+          <button onClick={() => setView(token ? 'write' : 'login')} className="bg-blue-600 text-white px-6 py-2 rounded-full text-xs font-bold uppercase tracking-widest">
+            {token ? 'New Story' : 'Sign In'}
+          </button>
         </div>
       </nav>
 
-      <main className="max-w-4xl mx-auto px-6 py-16 grid grid-cols-1 lg:grid-cols-[1fr_250px] gap-12">
-        <div className="max-w-2xl">
-          {view === 'home' && posts.map(post => {
-            const headers = extractHeaders(post.content);
-            return (
-              <article key={post._id} className="mb-32 animate-in fade-in slide-in-from-bottom-6 duration-700">
-                {post.imageUrl && <img src={post.imageUrl} className="w-full h-[400px] object-cover rounded-2xl mb-10 shadow-2xl shadow-black/40 border border-slate-800" alt="" />}
-                
-                <div className="flex items-center gap-3 mb-6 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                  <span className="text-blue-400">{post.authorName}</span>
-                  <span>/</span>
-                  <span>{Math.ceil(post.content.split(' ').length / 200)} min read</span>
-                </div>
-
-                <h2 className="text-5xl font-serif font-bold mb-10 text-white leading-[1.2] tracking-tight">{post.title}</h2>
-                
-                <div className="prose prose-invert prose-slate prose-lg max-w-none 
-                  prose-headings:text-white prose-p:text-slate-300 prose-strong:text-white prose-code:text-blue-300 
-                  prose-pre:bg-slate-900 prose-pre:border prose-pre:border-slate-800">
-                  <ReactMarkdown>{post.content}</ReactMarkdown>
-                </div>
-                
-                <div className="flex gap-8 mt-16 pt-8 border-t border-slate-800 text-sm font-bold text-slate-500">
-                  <span>✦ {post.likes?.length || 0} Applause</span>
-                  <span>👁️ {post.views || 0} Reads</span>
-                </div>
-              </article>
-            );
-          })}
-
-          {view === 'write' && (
-            <div className="animate-in fade-in duration-500">
-              <input 
-                className="w-full text-6xl font-serif font-bold outline-none bg-transparent placeholder:text-slate-800 text-white tracking-tighter mb-12" 
-                placeholder="Story Title" 
-                onChange={e => setForm({...form, title: e.target.value})} 
-              />
-              <textarea 
-                className="w-full h-[600px] text-xl font-serif outline-none bg-transparent placeholder:text-slate-800 text-slate-300 leading-relaxed resize-none" 
-                placeholder="Markdown supported content..." 
-                onChange={e => setForm({...form, content: e.target.value})} 
-              />
-              <div className="fixed bottom-10 right-10">
-                <button 
-                  onClick={async () => { await axios.post(`${API}/posts`, form, { headers: { Authorization: `Bearer ${token}` } }); setView('home'); fetchPosts(); }} 
-                  className="bg-blue-600 text-white px-10 py-4 rounded-full font-black shadow-2xl hover:bg-blue-500 transition-all"
-                >
-                  Publish Story
-                </button>
-              </div>
+      <main className="max-w-3xl mx-auto px-6 py-16">
+        {view === 'home' && posts.map(post => (
+          <article key={post._id} className="mb-24 animate-in fade-in duration-700">
+            {post.imageUrl && <img src={post.imageUrl} className="w-full h-[400px] object-cover rounded-2xl mb-8 border border-slate-800 shadow-2xl" />}
+            <h2 className="text-4xl font-serif font-bold text-white mb-6 leading-tight">{post.title}</h2>
+            <div className="prose prose-invert prose-slate max-w-none mb-8">
+              <ReactMarkdown>{post.content}</ReactMarkdown>
             </div>
-          )}
-        </div>
+            <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest border-t border-slate-800 pt-6">
+              Published by {post.authorName} • {post.views || 0} Views
+            </div>
+          </article>
+        ))}
 
-        {/* Sticky TOC Sidebar */}
-        <aside className="hidden lg:block">
-          <div className="sticky top-32">
-            <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500 mb-6">In this Story</p>
-            {posts.length > 0 && view === 'home' && extractHeaders(posts[0].content).map((h, i) => (
-              <div key={i} className={`text-xs mb-4 cursor-pointer hover:text-blue-400 transition-colors font-medium ${h.level === 3 ? 'pl-4 text-slate-500' : 'text-slate-400'}`}>
-                {h.text}
-              </div>
-            ))}
+        {view === 'write' && (
+          <div className="animate-in slide-in-from-bottom-4 duration-500">
+            {/* Aesthetic Image Uploader */}
+            <div className="relative group w-full h-64 rounded-3xl border-2 border-dashed border-slate-800 bg-slate-900/50 flex flex-col items-center justify-center overflow-hidden transition-all hover:border-blue-500/50 mb-12">
+              {form.imageUrl ? (
+                <>
+                  <img src={form.imageUrl} className="w-full h-full object-cover" />
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                    <p className="text-white text-xs font-bold uppercase tracking-widest">Change Cover</p>
+                  </div>
+                </>
+              ) : (
+                <p className="text-slate-500 text-xs font-bold uppercase tracking-widest">{uploading ? 'Uploading...' : 'Add Cover Image'}</p>
+              )}
+              <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={handleImageUpload} />
+            </div>
+
+            <input 
+              className="w-full text-6xl font-serif font-bold outline-none bg-transparent placeholder:text-slate-800 text-white tracking-tighter mb-8" 
+              placeholder="Title" 
+              onChange={e => setForm({...form, title: e.target.value})} 
+            />
+            
+            <textarea 
+              className="w-full h-96 text-xl font-serif outline-none bg-transparent placeholder:text-slate-800 text-slate-300 leading-relaxed resize-none mb-20" 
+              placeholder="Tell your story..." 
+              onChange={e => setForm({...form, content: e.target.value})} 
+            />
+
+            <div className="fixed bottom-10 right-10">
+              <button 
+                onClick={async () => { await axios.post(`${API}/posts`, form, { headers: { Authorization: `Bearer ${token}` } }); setView('home'); fetchPosts(); }} 
+                className="bg-blue-600 text-white px-12 py-4 rounded-full font-black shadow-2xl hover:bg-blue-500 transition-all"
+              >
+                Publish Story
+              </button>
+            </div>
           </div>
-        </aside>
+        )}
+
+        {view === 'login' && (
+          <form onSubmit={handleAuth} className="max-w-sm mx-auto bg-slate-900 p-10 rounded-3xl border border-slate-800 shadow-2xl">
+            <h2 className="text-2xl font-serif font-bold text-white mb-8">Sign In</h2>
+            <input className="w-full bg-slate-800 p-4 rounded-xl mb-4 outline-none focus:ring-1 ring-blue-500" placeholder="Username" onChange={e => setCredentials({...credentials, username: e.target.value})} />
+            <input className="w-full bg-slate-800 p-4 rounded-xl mb-6 outline-none focus:ring-1 ring-blue-500" type="password" placeholder="Password" onChange={e => setCredentials({...credentials, password: e.target.value})} />
+            <button className="w-full bg-blue-600 text-white p-4 rounded-xl font-bold">Continue</button>
+          </form>
+        )}
       </main>
     </div>
   );
