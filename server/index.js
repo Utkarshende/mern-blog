@@ -6,7 +6,26 @@ require('dotenv').config();
 const Post = require('./models/Post');
 const app = express();
 
-app.use(cors({origin:"https://vercel.com/utkarshas-projects-b2961f40/mern-blog-client"}));
+const allowedOrigins = [
+  'http://localhost:5173', // Local React (Vite)
+  'http://localhost:3000', // Traditional React
+  'https://mern-blog-client-seven.vercel.app' // Your actual Vercel URL (Update this!)
+];
+
+
+app.use(cors({
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) === -1) {
+      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+      return callback(new Error(msg), false);
+    }
+    return callback(null, true);
+  }
+}));
+
 app.use(express.json()); // Allows the server to read JSON
 
 // Connect to MongoDB
