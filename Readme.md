@@ -1,19 +1,57 @@
-# ✍️ Minimalist MERN Blog
+# 📓 Journal - Modern MERN Stack Narrative Platform
 
-A clean, high-performance blog application built with the **MERN Stack** (MongoDB, Express, React, Node.js). This project focuses on a minimalist user experience and showcases full CRUD operations with Markdown support.
+A high-end, aesthetic blogging platform built with the MERN stack. Designed for writers who appreciate a clean, dark-themed workspace with real-time Markdown feedback and private draft management.
+---
 
+## ✨ Features
 
+- **Split-Screen Editor**: Write in Markdown and see live rendering instantly using `react-markdown`.
+- **Draft & Workspace System**: Save your progress privately. Drafts are only visible to the author until published.
+- **Narrative Feed**: A clean, typography-focused reading experience with estimated reading times.
+- **Full CRUD Support**: Create, Read, Update (Edit), and Delete your stories seamlessly.
+- **Deep Slate UI**: A custom, responsive interface built with Tailwind CSS.
+- **Secure Authentication**: JWT-based login and signup with author-specific permissions.
+- **Image Integration**: Support for Cloudinary-powered image uploads in narratives.
 
-## 🚀 Features
-- **Full CRUD:** Create, Read, Update, and Delete blog posts.
-- **Markdown Support:** Write posts using Markdown for rich-text formatting.
-- **Draft System:** Toggle between `Draft` and `Published` states.
-- **Live Preview:** See your formatted content in real-time as you type.
-- **Minimalist UI:** Focus on typography and content without distractions.
+---
 
 ## 🛠️ Tech Stack
-- **Frontend:** React (Vite), Axios, React-Markdown.
-- **Backend:** Node.js, Express.js.
-- **Database:** MongoDB (via Mongoose).
-- **Styling:** Modern CSS-in-JS.
 
+**Frontend:**
+- React.js (Vite)
+- Tailwind CSS (Styling)
+- Axios (API Requests)
+- React Markdown (Markdown Rendering)
+
+**Backend:**
+- Node.js & Express
+- MongoDB Atlas (Database)
+- JSON Web Tokens (Authentication)
+- Cloudinary (Image Hosting)
+
+---
+
+## 🚀 Getting Started
+
+### 1. Prerequisites
+- Node.js (v16 or higher)
+- MongoDB Atlas Account
+- Cloudinary Account
+
+### 2. Environment Setup
+Create a `.env` file in the **server** directory:
+
+```env
+PORT=5000
+MONGO_URI=your_mongodb_connection_string
+JWT_SECRET=your_random_secret_string
+CLOUDINARY_CLOUD_NAME=your_name
+CLOUDINARY_API_KEY=your_key
+CLOUDINARY_API_SECRET=your_secret
+
+## Contact
+For any inquiries or feedback, please contact:
+
+Utkarsha Shende
+
+📧 Email : utkarshapd1403@gmail.com
