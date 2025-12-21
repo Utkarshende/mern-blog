@@ -25,7 +25,7 @@ cloudinary.config({
 
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
-  params: { folder: 'blog_mern', allowed_formats: ['jpg', 'png', 'jpeg'] },
+  params: { folder: 'blog_mern', allowed_formats: ['jpg', 'png', 'jpeg', 'webp'] },
 });
 const upload = multer({ storage });
 
@@ -33,26 +33,34 @@ mongoose.connect(process.env.MONGO_URI).then(() => console.log("✅ DB Connected
 
 // --- AUTH ---
 app.post('/api/signup', async (req, res) => {
-  const hashedPassword = await bcrypt.hash(req.body.password, 10);
-  const user = new User({ username: req.body.username, password: hashedPassword });
-  await user.save();
-  res.status(201).json({ message: "Success" });
+  try {
+    const hashedPassword = await bcrypt.hash(req.body.password, 10);
+    const user = new User({ username: req.body.username, password: hashedPassword });
+    await user.save();
+    res.status(201).json({ message: "Success" });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 app.post('/api/login', async (req, res) => {
   const user = await User.findOne({ username: req.body.username });
   if (user && await bcrypt.compare(req.body.password, user.password)) {
     const token = jwt.sign({ id: user._id, username: user.username }, process.env.JWT_SECRET);
-    // CRITICAL: We now return the userId so the frontend can track "Likes"
     return res.json({ token, username: user.username, userId: user._id });
   }
-  res.status(401).json({ message: "Invalid" });
+  res.status(401).json({ message: "Invalid credentials" });
 });
 
-// --- ROUTES ---
+// --- BLOG & ANALYTICS ---
 app.get('/api/posts', async (req, res) => {
   const posts = await Post.find().sort({ createdAt: -1 });
   res.json(posts);
+});
+
+app.post('/api/posts/:id/view', async (req, res) => {
+  try {
+    await Post.findByIdAndUpdate(req.params.id, { $inc: { views: 1 } });
+    res.sendStatus(200);
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 app.post('/api/upload', auth, upload.single('image'), (req, res) => {
@@ -65,15 +73,10 @@ app.post('/api/posts', auth, async (req, res) => {
   res.json(post);
 });
 
-// LIKE TOGGLE ROUTE
 app.post('/api/posts/:id/like', auth, async (req, res) => {
   const post = await Post.findById(req.params.id);
   const index = post.likes.indexOf(req.user.id);
-  if (index === -1) {
-    post.likes.push(req.user.id); // Like
-  } else {
-    post.likes.splice(index, 1); // Unlike
-  }
+  index === -1 ? post.likes.push(req.user.id) : post.likes.splice(index, 1);
   await post.save();
   res.json(post);
 });
@@ -85,4 +88,4 @@ app.post('/api/posts/:id/comments', auth, async (req, res) => {
   res.json(post);
 });
 
-app.listen(5000, () => console.log("🚀 Server running"));
+app.listen(5000, () => console.log("🚀 Server running on 5000"));
