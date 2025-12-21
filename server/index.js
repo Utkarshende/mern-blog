@@ -16,7 +16,6 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Cloudinary
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
@@ -31,14 +30,11 @@ const upload = multer({ storage });
 
 mongoose.connect(process.env.MONGO_URI).then(() => console.log("✅ DB Connected"));
 
-// --- AUTH ---
 app.post('/api/signup', async (req, res) => {
-  try {
-    const hashedPassword = await bcrypt.hash(req.body.password, 10);
-    const user = new User({ username: req.body.username, password: hashedPassword });
-    await user.save();
-    res.status(201).json({ message: "Success" });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  const hashedPassword = await bcrypt.hash(req.body.password, 10);
+  const user = new User({ username: req.body.username, password: hashedPassword });
+  await user.save();
+  res.status(201).json({ message: "Success" });
 });
 
 app.post('/api/login', async (req, res) => {
@@ -47,25 +43,27 @@ app.post('/api/login', async (req, res) => {
     const token = jwt.sign({ id: user._id, username: user.username }, process.env.JWT_SECRET);
     return res.json({ token, username: user.username, userId: user._id });
   }
-  res.status(401).json({ message: "Invalid credentials" });
+  res.status(401).json({ message: "Invalid" });
 });
 
-// --- BLOG & ANALYTICS ---
 app.get('/api/posts', async (req, res) => {
   const posts = await Post.find().sort({ createdAt: -1 });
   res.json(posts);
 });
 
-app.post('/api/posts/:id/view', async (req, res) => {
-  try {
-    await Post.findByIdAndUpdate(req.params.id, { $inc: { views: 1 } });
-    res.sendStatus(200);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+// PUBLIC AUTHOR PROFILE ROUTE
+app.get('/api/posts/author/:id', async (req, res) => {
+  const posts = await Post.find({ author: req.params.id }).sort({ createdAt: -1 });
+  const user = await User.findById(req.params.id).select('username');
+  res.json({ posts, username: user.username });
 });
 
-app.post('/api/upload', auth, upload.single('image'), (req, res) => {
-  res.json({ url: req.file.path });
+app.post('/api/posts/:id/view', async (req, res) => {
+  await Post.findByIdAndUpdate(req.params.id, { $inc: { views: 1 } });
+  res.sendStatus(200);
 });
+
+app.post('/api/upload', auth, upload.single('image'), (req, res) => res.json({ url: req.file.path }));
 
 app.post('/api/posts', auth, async (req, res) => {
   const post = new Post({ ...req.body, author: req.user.id, authorName: req.user.username });
@@ -88,4 +86,4 @@ app.post('/api/posts/:id/comments', auth, async (req, res) => {
   res.json(post);
 });
 
-app.listen(5000, () => console.log("🚀 Server running on 5000"));
+app.listen(5000, () => console.log("🚀 Server running"));
