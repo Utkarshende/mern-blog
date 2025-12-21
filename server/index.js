@@ -16,7 +16,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Cloudinary Configuration
+// Cloudinary Setup
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
@@ -25,83 +25,65 @@ cloudinary.config({
 
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
-  params: {
-    folder: 'blog_images',
-    allowed_formats: ['jpg', 'png', 'jpeg', 'webp']
-  },
+  params: { folder: 'blog_mern', allowed_formats: ['jpg', 'png', 'jpeg', 'webp'] },
 });
-const upload = multer({ storage: storage });
+const upload = multer({ storage });
 
 mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log("✅ MongoDB Connected"))
-  .catch(err => console.error("❌ DB Error:", err));
+  .then(() => console.log("✅ DB Connected"))
+  .catch(err => console.error(err));
 
-// --- AUTH ROUTES ---
+// --- AUTH ---
 app.post('/api/signup', async (req, res) => {
-  try {
-    const { username, password } = req.body;
-    const exists = await User.findOne({ username });
-    if (exists) return res.status(400).json({ message: "User already exists" });
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const newUser = new User({ username, password: hashedPassword });
-    await newUser.save();
-    res.status(201).json({ message: "User created!" });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  const hashedPassword = await bcrypt.hash(req.body.password, 10);
+  const user = new User({ username: req.body.username, password: hashedPassword });
+  await user.save();
+  res.status(201).json({ message: "Created" });
 });
 
 app.post('/api/login', async (req, res) => {
-  try {
-    const { username, password } = req.body;
-    const user = await User.findOne({ username });
-    if (!user || !(await bcrypt.compare(password, user.password))) {
-      return res.status(401).json({ message: "Invalid credentials" });
-    }
-    const token = jwt.sign({ id: user._id, username: user.username }, process.env.JWT_SECRET, { expiresIn: '1d' });
-    res.json({ token, username: user.username });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  const user = await User.findOne({ username: req.body.username });
+  if (user && await bcrypt.compare(req.body.password, user.password)) {
+    const token = jwt.sign({ id: user._id, username: user.username }, process.env.JWT_SECRET);
+    return res.json({ token, username: user.username });
+  }
+  res.status(401).json({ message: "Invalid" });
 });
 
-// --- IMAGE UPLOAD ROUTE ---
+// --- UPLOAD ---
 app.post('/api/upload', auth, upload.single('image'), (req, res) => {
-  if (!req.file) return res.status(400).json({ message: "No file uploaded" });
   res.json({ url: req.file.path });
 });
 
-// --- BLOG ROUTES ---
+// --- POSTS & COMMENTS ---
 app.get('/api/posts', async (req, res) => {
   const posts = await Post.find().sort({ createdAt: -1 });
   res.json(posts);
 });
 
 app.get('/api/posts/me', auth, async (req, res) => {
-  const myPosts = await Post.find({ author: req.user.id }).sort({ createdAt: -1 });
-  res.json(myPosts);
+  const posts = await Post.find({ author: req.user.id }).sort({ createdAt: -1 });
+  res.json(posts);
 });
 
 app.post('/api/posts', auth, async (req, res) => {
-  try {
-    const newPost = new Post({ ...req.body, author: req.user.id, authorName: req.user.username });
-    await newPost.save();
-    res.json(newPost);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  const post = new Post({ ...req.body, author: req.user.id, authorName: req.user.username });
+  await post.save();
+  res.json(post);
 });
 
-app.put('/api/posts/:id', auth, async (req, res) => {
-  try {
-    const post = await Post.findById(req.params.id);
-    if (post.author.toString() !== req.user.id) return res.status(403).json({ message: "Unauthorized" });
-    const updated = await Post.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    res.json(updated);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+app.post('/api/posts/:id/comments', auth, async (req, res) => {
+  const post = await Post.findById(req.params.id);
+  post.comments.push({ text: req.body.text, authorName: req.user.username, authorId: req.user.id });
+  await post.save();
+  res.json(post);
 });
 
 app.delete('/api/posts/:id', auth, async (req, res) => {
-  try {
-    const post = await Post.findById(req.params.id);
-    if (post.author.toString() !== req.user.id) return res.status(403).json({ message: "Unauthorized" });
-    await Post.findByIdAndDelete(req.params.id);
-    res.json({ message: "Deleted" });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  const post = await Post.findById(req.params.id);
+  if (post.author.toString() !== req.user.id) return res.status(403).send();
+  await Post.findByIdAndDelete(req.params.id);
+  res.json({ message: "Deleted" });
 });
 
 const PORT = process.env.PORT || 5000;
