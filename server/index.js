@@ -55,34 +55,29 @@ app.get('/api/posts', async (req, res) => {
   res.json(posts);
 });
 
-// PUBLISH POST (Corrected for 500 error)
-app.post('/api/posts', auth, async (req, res) => {
-  try {
-    const { title, content, imageUrl } = req.body;
-    if (!title || !content) return res.status(400).json({ message: "Missing fields" });
-
-    const post = new Post({
-      title, content, imageUrl: imageUrl || "",
-      author: req.user.id,
-      authorName: req.user.username,
-      views: 0, likes: []
-    });
-    const savedPost = await post.save();
-    res.status(201).json(savedPost);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
-  }
+app.get('/api/users/:id', async (req, res) => {
+  const user = await User.findById(req.params.id).select('-password');
+  const posts = await Post.find({ author: req.params.id }).sort({ createdAt: -1 });
+  res.json({ user, posts });
 });
 
-// DELETE POST
-app.delete('/api/posts/:id', auth, async (req, res) => {
+app.post('/api/posts', auth, async (req, res) => {
   try {
-    const post = await Post.findById(req.params.id);
-    if (post.author.toString() !== req.user.id) return res.status(403).json({ message: "Forbidden" });
-    await Post.findByIdAndDelete(req.params.id);
-    res.json({ message: "Deleted" });
+    const post = new Post({
+      ...req.body,
+      author: req.user.id,
+      authorName: req.user.username,
+    });
+    await post.save();
+    res.status(201).json(post);
   } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.delete('/api/posts/:id', auth, async (req, res) => {
+  const post = await Post.findById(req.params.id);
+  if (post.author.toString() !== req.user.id) return res.status(403).send("Forbidden");
+  await Post.findByIdAndDelete(req.params.id);
+  res.json({ message: "Deleted" });
 });
 
 app.listen(5000, () => console.log("🚀 Server Live"));
