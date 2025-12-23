@@ -1,4 +1,4 @@
-const mongoose = require('mongoose'); // <--- THIS LINE WAS MISSING
+const mongoose = require('mongoose'); 
 
 const PostSchema = new mongoose.Schema({
   title: { type: String, required: true },

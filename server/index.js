@@ -10,8 +10,19 @@ const User = require('./models/User');
 const auth = require('./middleware/auth');
 
 const app = express();
-app.use(cors());
+
+// --- CORRECTED CORS CONFIGURATION ---
+app.use(cors({
+  origin: "https://mern-chat-api-azure.vercel.app", 
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: true
+}));
+
 app.use(express.json());
+
+// Health Check for Render
+app.get("/", (req, res) => res.send("Blog API is running..."));
 
 // DB Connection
 mongoose.connect(process.env.MONGO_URI)
@@ -20,7 +31,6 @@ mongoose.connect(process.env.MONGO_URI)
 
 // --- ROUTES ---
 
-// Signup
 app.post('/api/signup', async (req, res) => {
   try {
     const { username, password } = req.body;
@@ -31,7 +41,6 @@ app.post('/api/signup', async (req, res) => {
   } catch (err) { res.status(500).json({ error: "Signup failed" }); }
 });
 
-// Login
 app.post('/api/login', async (req, res) => {
   try {
     const user = await User.findOne({ username: req.body.username });
@@ -43,7 +52,6 @@ app.post('/api/login', async (req, res) => {
   } catch (err) { res.status(500).json({ error: "Login failed" }); }
 });
 
-// Get All Posts
 app.get('/api/posts', async (req, res) => {
   try {
     const posts = await Post.find().sort({ createdAt: -1 });
@@ -51,7 +59,6 @@ app.get('/api/posts', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// Create Post
 app.post('/api/posts', auth, async (req, res) => {
   try {
     const post = new Post({
@@ -64,39 +71,24 @@ app.post('/api/posts', auth, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// Update Post (Edit)
 app.put('/api/posts/:id', auth, async (req, res) => {
   try {
     const post = await Post.findById(req.params.id);
     if (post.author.toString() !== req.user.id) return res.status(403).send("Unauthorized");
-    
-    const updated = await Post.findByIdAndUpdate(
-      req.params.id, 
-      { ...req.body, updatedAt: Date.now() }, 
-      { new: true }
-    );
+    const updated = await Post.findByIdAndUpdate(req.params.id, { ...req.body, updatedAt: Date.now() }, { new: true });
     res.json(updated);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// DELETE POST
 app.delete('/api/posts/:id', auth, async (req, res) => {
   try {
     const post = await Post.findById(req.params.id);
     if (!post) return res.status(404).json({ message: "Post not found" });
-    
-    // Security check: Only the author can delete their own post
-    if (post.author.toString() !== req.user.id) {
-      return res.status(403).json({ message: "Unauthorized to delete this post" });
-    }
-
+    if (post.author.toString() !== req.user.id) return res.status(403).json({ message: "Unauthorized" });
     await Post.findByIdAndDelete(req.params.id);
-    res.json({ message: "Post deleted successfully" });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+    res.json({ message: "Post deleted" });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// Start Server
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`🚀 Server ready at http://localhost:${PORT}`));
+app.listen(PORT, () => console.log(`🚀 Server ready at Port:${PORT}`));

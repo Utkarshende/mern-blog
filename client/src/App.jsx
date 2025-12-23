@@ -3,7 +3,8 @@ import axios from 'axios';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+// --- POINTING DIRECTLY TO PRODUCTION RENDER SERVER ---
+const API = "https://mern-blog-server-slxb.onrender.com/api";
 
 export default function App() {
   const [posts, setPosts] = useState([]);
@@ -22,25 +23,21 @@ export default function App() {
     try {
       const res = await axios.get(`${API}/posts`);
       setPosts(res.data);
-    } catch (err) { console.error("Backend connection error"); }
+    } catch (err) { console.error("Backend connection error", err); }
   };
 
   const deletePost = async (id) => {
-    if (!window.confirm("⚠️ Are you sure? This narrative will be lost forever.")) return;
+    if (!window.confirm("⚠️ Are you sure?")) return;
     try {
       await axios.delete(`${API}/posts/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      fetchPosts(); // Refresh list after deletion
-    } catch (err) {
-      alert("Failed to delete post.");
-    }
+      fetchPosts(); 
+    } catch (err) { alert("Failed to delete post."); }
   };
 
   const savePost = async (status) => {
-    if (!form.title.trim()) return alert("⚠️ Please add a title.");
-    if (!form.content.trim()) return alert("⚠️ Content cannot be empty.");
-
+    if (!form.title.trim() || !form.content.trim()) return alert("⚠️ Please fill all fields.");
     try {
       const config = { headers: { Authorization: `Bearer ${token}` } };
       const data = { ...form, status };
@@ -87,7 +84,6 @@ export default function App() {
       </nav>
 
       <main className="max-w-7xl mx-auto px-6 py-12">
-        {/* LOGIN/SIGNUP */}
         {view === 'login' && (
           <div className="max-w-sm mx-auto bg-slate-900 border border-slate-800 p-10 rounded-3xl">
             <h2 className="text-2xl font-serif font-bold text-white mb-6">{authMode === 'login' ? 'Sign In' : 'Join'}</h2>
@@ -102,7 +98,7 @@ export default function App() {
                   localStorage.setItem('userId', res.data.userId);
                   setView('home');
                 } else { setAuthMode('login'); alert("User Created!"); }
-              } catch { alert("Auth Error"); }
+              } catch { alert("Auth Error: Check credentials"); }
             }} className="space-y-4">
               <input className="w-full bg-slate-800 p-4 rounded-xl outline-none" placeholder="Username" onChange={e => setCredentials({...credentials, username: e.target.value})} />
               <input className="w-full bg-slate-800 p-4 rounded-xl outline-none" type="password" placeholder="Password" onChange={e => setCredentials({...credentials, password: e.target.value})} />
@@ -112,13 +108,10 @@ export default function App() {
           </div>
         )}
 
-        {/* FEED VIEW */}
         {view === 'home' && (
           <div className="max-w-2xl mx-auto">
             {publishedPosts.length === 0 ? (
-              <div className="text-center py-20 border-2 border-dashed border-slate-800 rounded-3xl">
-                <p className="text-slate-500 italic">No published stories yet.</p>
-              </div>
+              <div className="text-center py-20 border-2 border-dashed border-slate-800 rounded-3xl text-slate-500 italic">No published stories.</div>
             ) : (
               publishedPosts.map(post => (
                 <article key={post._id} className="mb-24">
@@ -131,7 +124,7 @@ export default function App() {
                   {currentUserId === post.author && (
                     <div className="flex gap-4">
                       <button onClick={() => { setEditingId(post._id); setForm(post); setView('write'); }} className="text-[10px] text-blue-400 font-bold uppercase">Edit</button>
-                      <button onClick={() => deletePost(post._id)} className="text-[10px] text-red-500 font-bold uppercase">Delete Post</button>
+                      <button onClick={() => deletePost(post._id)} className="text-[10px] text-red-500 font-bold uppercase">Delete</button>
                     </div>
                   )}
                 </article>
@@ -140,33 +133,23 @@ export default function App() {
           </div>
         )}
 
-        {/* DRAFTS VIEW */}
         {view === 'drafts' && (
           <div className="max-w-2xl mx-auto">
-            <h2 className="text-xs font-bold uppercase tracking-[0.3em] text-yellow-500 mb-8">Workspace</h2>
-            {draftPosts.length === 0 ? (
-               <div className="text-center py-20 bg-slate-900/30 border-2 border-dashed border-slate-800 rounded-3xl">
-                <p className="text-slate-500 italic mb-4">You have 0 drafts.</p>
-                <button onClick={() => setView('write')} className="text-yellow-500 font-bold uppercase text-[10px]">Create new draft</button>
-              </div>
-            ) : (
-              draftPosts.map(post => (
-                <div key={post._id} className="p-6 bg-slate-900 border border-slate-800 rounded-2xl mb-4 flex justify-between items-center group hover:border-yellow-500/50 transition-all">
-                  <div>
-                    <h3 className="text-white font-bold">{post.title || "Untitled Draft"}</h3>
-                    <p className="text-[10px] text-slate-500 uppercase">Status: Private Draft</p>
-                  </div>
-                  <div className="flex gap-4">
-                    <button onClick={() => { setEditingId(post._id); setForm(post); setView('write'); }} className="bg-slate-800 text-white px-4 py-2 rounded-lg text-xs font-bold uppercase hover:bg-yellow-600 transition-colors">Resume</button>
-                    <button onClick={() => deletePost(post._id)} className="text-red-500 font-bold text-[10px] uppercase hover:underline">Discard</button>
-                  </div>
+            {draftPosts.map(post => (
+              <div key={post._id} className="p-6 bg-slate-900 border border-slate-800 rounded-2xl mb-4 flex justify-between items-center hover:border-yellow-500/50 transition-all">
+                <div>
+                  <h3 className="text-white font-bold">{post.title || "Untitled Draft"}</h3>
+                  <p className="text-[10px] text-slate-500 uppercase">Private Draft</p>
                 </div>
-              ))
-            )}
+                <div className="flex gap-4">
+                  <button onClick={() => { setEditingId(post._id); setForm(post); setView('write'); }} className="bg-slate-800 text-white px-4 py-2 rounded-lg text-xs font-bold uppercase">Resume</button>
+                  <button onClick={() => deletePost(post._id)} className="text-red-500 font-bold text-[10px] uppercase">Discard</button>
+                </div>
+              </div>
+            ))}
           </div>
         )}
 
-        {/* WRITE VIEW */}
         {view === 'write' && (
           <div className="flex flex-col h-[calc(100vh-160px)]">
             <div className="flex gap-4 mb-6 items-center">

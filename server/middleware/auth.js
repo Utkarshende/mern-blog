@@ -6,7 +6,6 @@ module.exports = (req, res, next) => {
     if (!token) return res.status(401).json({ message: "No token provided" });
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    // This attaches the user ID AND Username to the request
     req.user = decoded; 
     next();
   } catch (err) {
