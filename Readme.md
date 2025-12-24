@@ -29,26 +29,6 @@ A high-end, aesthetic blogging platform built with the MERN stack. Designed for 
 - JSON Web Tokens (Authentication)
 - Cloudinary (Image Hosting)
 
----
-
-## 🚀 Getting Started
-
-### 1. Prerequisites
-- Node.js (v16 or higher)
-- MongoDB Atlas Account
-- Cloudinary Account
-
-### 2. Environment Setup
-Create a `.env` file in the **server** directory:
-
-```env
-PORT=5000
-MONGO_URI=your_mongodb_connection_string
-JWT_SECRET=your_random_secret_string
-CLOUDINARY_CLOUD_NAME=your_name
-CLOUDINARY_API_KEY=your_key
-CLOUDINARY_API_SECRET=your_secret
-
 ## Contact
 For any inquiries or feedback, please contact:
 
